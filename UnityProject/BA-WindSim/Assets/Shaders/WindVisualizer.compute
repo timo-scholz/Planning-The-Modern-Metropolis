@@ -1,0 +1,55 @@
+#pragma kernel CopyTexture
+
+//Quell RWTexture2D
+RWTexture2D<float4> Source;  
+//Ziel RWTexture2D
+RWTexture2D<float4> Result;  
+
+//Hilfsfunktion zur Berechnung der Interpolierten Farbe
+float4 InterpolateColor(float angle)
+{
+    //Normiere den Winkel in den Bereich [0, 1] für den Farbverlauf
+    float normalizedAngle = (angle + 3.14159265) / (2 * 3.14159265); // Winkelbereich von -π bis π in [0, 1] umwandeln
+
+    //Definiere Farben für den Farbverlauf
+    float4 color1 = float4(1, 0, 0, 1);  // Rot
+    float4 color2 = float4(0, 1, 0, 1);  // Grün
+    float4 color3 = float4(0, 0, 1, 1);  // Blau
+    float4 color4 = float4(1, 1, 0, 1);  // Gelb
+
+    //Interpoliere zwischen den Farben
+    float4 colorA = lerp(color1, color2, clamp((normalizedAngle * 2.0), 0.0, 1.0)); //Interpolation zwischen Rot und Grün
+    float4 colorB = lerp(color3, color4, clamp((normalizedAngle * 2.0 - 1.0), 0.0, 1.0)); //Interpolation zwischen Blau und Gelb
+
+    return lerp(colorA, colorB, clamp(normalizedAngle * 2.0 - 1.0, 0.0, 1.0));
+}
+
+[numthreads(8, 8, 1)]
+void CopyTexture(uint3 id : SV_DispatchThreadID)
+{
+    float4 color = Source[id.xy];
+    float x = color.r;
+    float y = color.g;
+
+    //Berechne die Richtung des Vektors
+    float norm = sqrt(x * x + y * y);
+    if (norm == 0)
+    {
+        Result[id.xy] = float4(0, 0, 0, 1); //Setze auf Schwarz, falls der Vektor null ist
+        return;
+    }
+
+    float2 normalized = float2(x / norm, y / norm);
+    float angle = atan2(normalized.y, normalized.x); //Winkel in Bogenmaß
+
+    //Berechne die Intensität
+    float intensity = min(norm, 1.0); //Norm auf den Bereich [0,1] beschränken, falls nötig
+
+    //Wähle die interpolierte Farbe basierend auf dem Winkel
+    float4 baseColor = InterpolateColor(angle);
+
+    //Skaliere die Farbe nach der Intensität
+    float4 outputColor = baseColor * intensity;
+
+    Result[id.xy] = outputColor;
+}

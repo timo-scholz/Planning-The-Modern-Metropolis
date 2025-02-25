@@ -1,0 +1,26 @@
+#pragma kernel ReadMultiplePixels
+
+//Input Texture
+Texture2D<float4> inputTexture;
+
+//Punkte zum Auslesen
+StructuredBuffer<float2> pPositions;
+
+//Output Buffer
+#pragma bind_buffer(name: outputBuffer, binding: 0)
+RWStructuredBuffer<float4> outputBuffer;
+
+[numthreads(16,16,1)]
+void ReadMultiplePixels(uint3 id : SV_DispatchThreadID)
+{
+    uint numPositions = pPositions.Length;
+
+    for (uint i = 0; i < numPositions; i++)
+    {
+        //Lese Farbe an Punkt
+        float4 color = inputTexture.Load(int3(pPositions[i].x, pPositions[i].y, 0));
+
+        //Speichere Farbe in Output Buffer
+        outputBuffer[i] = color;
+    }
+}
